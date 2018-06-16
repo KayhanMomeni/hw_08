@@ -1,0 +1,942 @@
+---
+title: "Eighth Week: Text Analysis in R"
+subtitle: "To Be, Or Not To Be?"
+author: "Kayhan Momeni"
+date: "13 Ordibehesht 1397"
+output:
+  prettydoc::html_pretty:
+    fig_width: 10
+    theme: leonids
+    highlight: github
+---
+
+<div align="center">
+<img  src="images/dickens1_1.png"  align = 'center'>
+</div>
+
+> <p dir="RTL"> 
+با استفاده از بسته gutenbergr داده های لازم را به دست آورید و به سوالات زیر پاسخ دهید.
+</p>
+
+<p dir="RTL">
+ابتدا باید پکیج های مورد نیاز را صدا بزنیم و داده ها را وارد کنیم:
+</p>
+```{r, eval=FALSE}
+library(gutenbergr)
+library(dplyr)
+library(stringr)
+library(tidytext)
+library(highcharter)
+library(wordcloud2)
+library(tm)
+library(tidyr)
+library(ggplot2)
+```
+
+```{r include=FALSE, cache=FALSE}
+library(gutenbergr)
+library(dplyr)
+library(stringr)
+library(tidytext)
+library(highcharter)
+library(wordcloud2)
+library(tm)
+library(tidyr)
+library(ggplot2)
+```
+
+***
+
+<h5 dir="RTL">
+۱. چارلز دیکنز نویسنده معروف انگلیسی بالغ بر چهارده رمان (چهارده و نیم) نوشته است. متن تمامی کتاب های او را دانلود کنید و سپس بیست لغت برتر استفاده شده را به صورت یک نمودار ستونی نمایش دهید. (طبیعتا باید ابتدا متن را پاکسازی کرده و stopping words را حذف نمایید تا به کلماتی که بار معنایی مشخصی منتقل می کنند برسید.)
+</h5>
+<h6 dir="RTL">
+پاسخ:
+</h6>
+
+<p dir="RTL">
+ابتدا باید لیست کارهای چارلز که متن آنها موجود است را به دست آوریم:
+</p>
+  
+```{r, warning=FALSE}
+gutenberg_metadata %>%
+  filter(language=="en" & author=="Dickens, Charles" & has_text) -> novels
+novels
+```
+<p dir="RTL">
+که بالغ بر ۷۸ عنوان است. حالا لیست معروف ترین کتاب های او را از عناوین بالا استخراج می کنیم. این عناوین عبارتند از:
+</p>
+<p>
+1- The Pickwick Papers
+</p>
+<p>
+2- The Adventures of Oliver Twist
+</p>
+<p>
+3- The Life and Adventures of Nicholas Nickleby
+</p>
+<p>
+4- The Old Curiosity Shop
+</p>
+<p>
+5- Barnaby Rudge
+</p>
+<p>
+6- The Life and Adventures of Martin Chuzzlewit
+</p>
+<p>
+7- Dombey and Son
+</p>
+<p>
+8- David Copperfield
+</p>
+<p>
+9- Bleak House
+</p>
+<p>
+10- Hard Times: For These Times
+</p>
+<p>
+11- Little Dorrit
+</p>
+<p>
+12- A Tale of Two Cities
+</p>
+<p>
+13- Great Expectations
+</p>
+<p>
+14- Our Mutual Friend
+</p>
+<p>
+15- The Mystery of Edwin Drood
+</p>
+
+```{r, warning=FALSE}
+data1  = gutenberg_download(580)[,2]
+data2  = gutenberg_download(730)[,2]
+data3  = gutenberg_download(967)[,2]
+data4  = gutenberg_download(700)[,2]
+data5  = gutenberg_download(917)[,2]
+data6  = gutenberg_download(968)[,2]
+data7  = gutenberg_download(821)[,2]
+data8  = gutenberg_download(766)[,2]
+data9  = gutenberg_download(1023)[,2]
+data10 = gutenberg_download(786)[,2]
+data11 = gutenberg_download(963)[,2]
+data12 = gutenberg_download(98)[,2]
+data13 = gutenberg_download(1400)[,2]
+data14 = gutenberg_download(883)[,2]
+data15 = gutenberg_download(564)[,2]
+```
+<p dir="RTL">
+حالا باید همه ی متن ها را با هم ادغام کنیم و هر کلمه را در یک ردیف قرار دهیم و 
+$Stopping-Word$ 
+ها را حذف کنیم.
+</p>
+
+```{r, warning=FALSE}
+data = do.call("rbind", list(data1, data2, data3, data4, data5, 
+                             data6, data7, data8, data9, data10,
+                             data11, data12, data13, data14, data15))
+
+data %>% 
+  unnest_tokens(word, text, to_lower=TRUE) %>%
+  anti_join(stop_words) -> data_tidied
+```
+
+<p dir="RTL">
+در نهایت هم باید نمودار ۲۰ لغت برتر را رسم کنیم:
+</p>
+```{r, warning=FALSE}
+data_tidied %>%
+  group_by(word) %>%
+  summarise(Count=n()) %>%
+  arrange(-Count) %>%
+  .[1:20,] %>%
+  hchart(type="column", hcaes(x=word, y=Count))
+```
+
+***
+
+<h5 dir="RTL">
+۲. ابر لغات ۲۰۰ کلمه پرتکرار در رمان های چارلز دیکنز را رسم نمایید. این کار را با بسته wordcloud2 انجام دهید. برای دانلود می توانید به لینک زیر مراجعه کنید.
+</h5>
+
+<h5>
+https://github.com/Lchiffon/wordcloud2
+</h5>
+<h6 dir="RTL">
+پاسخ:
+</h6>
+```{r, warning=FALSE}
+data_tidied %>%
+  group_by(word) %>%
+  summarise(freq=n()) %>%
+  arrange(-freq) %>%
+  .[1:200,] %>%
+  wordcloud2(figPath = "/Users/kayhan/Desktop/dickens1_1.png", size=0.5, color='random-dark')
+```
+<p dir="RTL">
+البته ماسک داده شده برای نمایش ابر لغات، ماسک زیبایی نیست. بنابراین برای رسم یک ابرکلمات زیبا، از هیچ ماسکی استفاده نمیکنیم:
+</p>
+```{r, warning=FALSE}
+data_tidied %>%
+  group_by(word) %>%
+  summarise(freq=n()) %>%
+  arrange(-freq) %>%
+  .[1:200,] %>%
+  wordcloud2(size=0.5)
+```
+***
+
+<h5 dir="RTL">
+۳. اسم پنج شخصیت اصلی در هر رمان دیکنز را استخراج کنید و با نموداری تعداد دفعات تکرار شده بر حسب رمان را رسم نمایید. (مانند مثال کلاس در رسم اسامی شخصیت ها در سری هر پاتر)
+</h5>
+<h6 dir="RTL">
+پاسخ:
+</h6>
+<p dir="RTL">
+اسم ها به حروف بزرگ شروع می شوند. بنابراین برای استخراج کاراکتر داستان ها، باید کلماتی که با حروف بزرگ شروع شده اند را استخراج کنیم و کلمات 
+$Stopping-Word$ 
+را از آن ها حذف کنیم و در نهایت بر اساس فرکانس استفاده آن ها در متن، مرتبشان کنیم.
+</p>
+```{r, warning=FALSE}
+myStopWords = stop_words
+de<-data.frame("sir","SMART")
+names(de)<-c("word","lexicon")
+myStopWords <- rbind(myStopWords, de)
+de<-data.frame("miss","SMART")
+names(de)<-c("word","lexicon")
+myStopWords <- rbind(myStopWords, de)
+de<-data.frame("lady","SMART")
+names(de)<-c("word","lexicon")
+myStopWords <- rbind(myStopWords, de)
+
+Characters = function(dataframe)
+{
+  dataframe %>% 
+    unnest_tokens(Word, text, to_lower = FALSE) %>%
+    mutate(word=tolower(Word)) %>%
+    anti_join(myStopWords) ->tmp
+  
+  tmp = as.vector(tmp[,1])
+  
+  str_extract_all(tmp, "[A-Z][a-z]+") %>%
+    table() %>%
+    as.data.frame() %>%
+    arrange(-Freq) %>%
+    head(10)
+}
+```
+<p dir="RTL">
+شخصیت های داستان یاداشت های پیکویک:
+</p>
+```{r, warning=FALSE}
+Characters(data1)
+```
+
+<p dir="RTL">
+شخصیت های داستان الیور توییست:
+</p>
+```{r, warning=FALSE}
+Characters(data2)
+
+```
+<p dir="RTL">
+شخصیت های داستان 
+ماجراهای نیکلاس نیکلبی
+:
+</p>
+
+```{r, warning=FALSE}
+Characters(data3)
+```
+
+<p dir="RTL">
+شخصیت های داستان 
+مغازه عتیقه فروشی
+:
+</p>
+```{r, warning=FALSE}
+Characters(data4)
+```
+
+<p dir="RTL">
+شخصیت های داستان 
+بارنابی روج
+:
+</p>
+```{r, warning=FALSE}
+Characters(data5)
+```
+<p dir="RTL">
+شخصیت های داستان 
+زندگی و ماجراجوییهای مارتین چوزلویت
+:
+</p>
+```{r, warning=FALSE}
+Characters(data6)
+```
+
+<p dir="RTL">
+شخصیت های داستان 
+دامبی و پسر
+:
+</p>
+```{r, warning=FALSE}
+Characters(data7)
+```
+
+<p dir="RTL">
+شخصیت های داستان 
+دیوید کاپرفیلد
+:
+</p>
+```{r, warning=FALSE}
+Characters(data8)
+```
+<p dir="RTL">
+شخصیت های داستان 
+خانه غمزده
+:
+</p>
+```{r, warning=FALSE}
+Characters(data9)
+```
+<p dir="RTL">
+شخصیت های داستان 
+دوران مشقت
+:
+</p>
+```{r, warning=FALSE}
+Characters(data10)
+```
+<p dir="RTL">
+شخصیت های داستان 
+دوریت کوچک
+:
+</p>
+```{r, warning=FALSE}
+Characters(data11)
+```
+<p dir="RTL">
+شخصیت های داستان 
+«داستان دو شهر»
+:
+</p>
+```{r, warning=FALSE}
+Characters(data12)
+```
+<p dir="RTL">
+شخصیت های داستان 
+آرزوهای بزرگ
+:
+</p>
+```{r, warning=FALSE}
+Characters(data13)
+```
+<p dir="RTL">
+شخصیت های داستان 
+دوست مشترکمان
+:
+</p>
+```{r, warning=FALSE}
+Characters(data14)
+```
+<p dir="RTL">
+شخصیت های داستان 
+اسرار ادوین درود
+:
+</p>
+```{r, warning=FALSE}
+Characters(data15)
+```
+***
+
+<h5 dir="RTL">
+۴.  در بسته tidytext داده ایی به نام sentiments وجود دارد که فضای احساسی لغات را مشخص می نماید. با استفاده از این داده نمودار ۲۰ لغت برتر negative و ۲۰ لغت برتر positive را در کنار هم رسم نمایید. با استفاده از این نمودار فضای حاکم بر داستان چگونه ارزیابی می کنید؟ (به طور مثال برای کتاب داستان دو شهر فضای احساسی داستان به ترتیب تکرر در نمودار زیر قابل مشاهده است.)
+</h5>
+
+<div align="center">
+<img  src="images/sentiments.png"  align = 'center'>
+</div>
+<h6 dir="RTL">
+پاسخ:
+</h6>
+<p dir="RTL">
+ابتدا کلمات را در دو گروه 
+positive 
+و 
+negative 
+تقسیم بندی می کنیم. سپس ۲۰ کلمه ی پرتکرار از هر گروه را روی نمودار نشان می دهیم. سپس کلمات را به ۱۰ گروه (
+positive 
+و 
+negative 
+و 
+trust 
+و 
+anticipation 
+و 
+fear 
+و 
+sadness 
+و 
+joy 
+و 
+anger 
+و 
+surprise 
+و 
+disgust
+)
+تقسیم می کنیم و فرکانس ظهور هر گروه را چاپ می کنیم. عملیات بالا را در یک تابع به صورت زیر مینویسیم:
+</p>
+```{r, warning=FALSE}
+SentimentAnalysis1 = function(dataframe)
+{
+  sentiment <- get_sentiments("bing")
+  
+  dataframe %>% 
+    unnest_tokens(word, text) %>%
+    anti_join(myStopWords) %>%
+    inner_join(sentiment) ->tmp
+  
+  tmp %>%
+    filter(sentiment=="negative") %>%
+    group_by(word) %>%
+    summarise(Count=n()) %>%
+    arrange(-Count) %>%
+    .[1:20,] %>%
+    mutate(gr = "Negative")-> neg
+  
+  tmp %>%
+    filter(sentiment=="positive") %>%
+    group_by(word) %>%
+    summarise(Count=n()) %>%
+    arrange(-Count) %>%
+    .[1:20,] %>%
+    mutate(gr = "Positive")->pos
+  
+  sents = rbind(neg, pos)
+  
+  hchart(sents, type="column", hcaes(x=word, y=Count, group=gr)) %>%
+    hc_add_theme(hc_theme_elementary())
+}
+  
+SentimentAnalysis2 = function(dataframe)
+{ 
+  sentiment <- get_sentiments("nrc")
+  
+  dataframe %>% 
+    unnest_tokens(word, text) %>%
+    anti_join(myStopWords) %>%
+    inner_join(sentiment) %>%
+    group_by(sentiment) %>%
+    summarise(Count=n()) %>%
+    arrange(-Count) %>%
+    hchart(type="bar", hcaes(x=sentiment, y=Count)) %>%
+    hc_add_theme(hc_theme_elementary()) 
+}
+```
+<p dir="RTL">
+حالا برای هر داستان، این نمودارها را حساب می کنیم.
+</p>
+
+<p dir="RTL">
+فضای احساسی داستان
+یادداشت های پیکویک
+:
+</p>
+```{r, warning=FALSE}
+SentimentAnalysis1(data1)
+SentimentAnalysis2(data1)
+```
+
+<p dir="RTL">
+فضای احساسی داستان
+الیور توییست
+:
+</p>
+```{r, warning=FALSE}
+SentimentAnalysis1(data2)
+SentimentAnalysis2(data2)
+```
+<p dir="RTL">
+فضای احساسی داستان
+ماجراهای نیکلاس نیکلبی
+:
+</p>
+
+```{r, warning=FALSE}
+SentimentAnalysis1(data3)
+SentimentAnalysis2(data3)
+```
+
+<p dir="RTL">
+فضای احساسی داستان
+مغازه عتیقه فروشی
+:
+</p>
+```{r, warning=FALSE}
+SentimentAnalysis1(data4)
+SentimentAnalysis2(data4)
+```
+
+<p dir="RTL">
+فضای احساسی داستان
+بارنابی روج
+:
+</p>
+```{r, warning=FALSE}
+SentimentAnalysis1(data5)
+SentimentAnalysis2(data5)
+```
+<p dir="RTL">
+فضای احساسی داستان
+زندگی و ماجراجوییهای مارتین چوزلویت
+:
+</p>
+```{r, warning=FALSE}
+SentimentAnalysis1(data6)
+SentimentAnalysis2(data6)
+```
+
+<p dir="RTL">
+فضای احساسی داستان
+دامبی و پسر
+:
+</p>
+```{r, warning=FALSE}
+SentimentAnalysis1(data7)
+SentimentAnalysis2(data7)
+```
+
+<p dir="RTL">
+فضای احساسی داستان
+دیوید کاپرفیلد
+:
+</p>
+```{r, warning=FALSE}
+SentimentAnalysis1(data8)
+SentimentAnalysis2(data8)
+```
+<p dir="RTL">
+فضای احساسی داستان
+خانه غمزده
+:
+</p>
+```{r, warning=FALSE}
+SentimentAnalysis1(data9)
+SentimentAnalysis2(data9)
+```
+<p dir="RTL">
+فضای احساسی داستان
+دوران مشقت
+:
+</p>
+```{r, warning=FALSE}
+SentimentAnalysis1(data10)
+SentimentAnalysis2(data10)
+```
+<p dir="RTL">
+فضای احساسی داستان
+دوریت کوچک
+:
+</p>
+```{r, warning=FALSE}
+SentimentAnalysis1(data11)
+SentimentAnalysis2(data11)
+```
+<p dir="RTL">
+فضای احساسی داستان
+«داستان دو شهر»
+:
+</p>
+```{r, warning=FALSE}
+SentimentAnalysis1(data12)
+SentimentAnalysis2(data12)
+```
+<p dir="RTL">
+فضای احساسی داستان
+آرزوهای بزرگ
+:
+</p>
+```{r, warning=FALSE}
+SentimentAnalysis1(data13)
+SentimentAnalysis2(data13)
+```
+<p dir="RTL">
+فضای احساسی داستان
+دوست مشترکمان
+:
+</p>
+```{r, warning=FALSE}
+SentimentAnalysis1(data14)
+SentimentAnalysis2(data14)
+```
+<p dir="RTL">
+فضای احساسی داستان
+اسرار ادوین درود
+:
+</p>
+```{r, warning=FALSE}
+SentimentAnalysis1(data15)
+SentimentAnalysis2(data15)
+```
+<p dir="RTL">
+که با نمودارهای هر داستان و مقایسه ی آن با داستان های دیگر، میتوان فضای احساسی کلی حاکم بر فضای داستان را تفسیر کرد
+</p>
+***
+
+<h5 dir="RTL">
+۵. متن داستان بینوایان را به ۲۰۰ قسمت مساوی تقسیم کنید. برای هر قسمت تعداد لغات positive و negative را حساب کنید و سپس این دو سری زمانی را در کنار هم برای مشاهده فضای احساسی داستان رسم نمایید.
+</h5>
+<h6 dir="RTL">
+پاسخ:
+</h6>
+<p dir="RTL">
+کتاب بینوایان دارای ۵ بخش به نام های زیر می باشد:
+</p>
+<p dir="RTL">
+۱- فانتین
+</p><p dir="RTL">
+۲- کوزت
+</p>
+<p dir="RTL">
+۳- ماریوس
+</p>
+<p dir="RTL">
+۴- رانهٔ کوچهٔ پلومه و حماسهٔ کوچهٔ سن دنی
+</p>
+<p dir="RTL">
+۵- ژان وال ژان
+</p>
+<p dir="RTL">
+ابتدا هر پنج بخش کتاب را دانلود می کنیم و با هم ادغام می کنیم:
+</p>
+```{r, warning=FALSE}
+Data1  = gutenberg_download(48731)[,2]
+Data2  = gutenberg_download(48732)[,2]
+Data3  = gutenberg_download(48733)[,2]
+Data4  = gutenberg_download(48734)[,2]
+Data5  = gutenberg_download(48735)[,2]
+
+Data = do.call("rbind", list(Data1, Data2, Data3, Data4, Data5))
+```
+<p dir="RTL">
+سپس کلمات کتاب را جدا میکنیم و آن ها را به ۲۰۰ بخش مساوی تقسیم میکنیم و برای هر بخش تعداد کلمات با بار احساسی مثبت و منفی را می شماریم:
+</p>
+```{r, warning=FALSE}
+sentiment <- get_sentiments("bing")
+
+Data %>% 
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) %>%
+  inner_join(sentiment) %>%
+  mutate(one=1, part=as.integer(cumsum(one)/nrow(.)*200)+1) %>%
+  select(word, sentiment, part)-> data_tidied
+
+data_tidied[data_tidied$part==201,]$part=200
+```
+<p dir="RTL">
+در نهایت هم میتوان سری زمانی هر گروه را رسم کرد:
+</p>
+```{r, warning=FALSE}
+data_tidied %>%
+  group_by(part, sentiment) %>%
+  summarise(Count=n()) %>%
+  hchart(type="line", hcaes(x=part, y=Count, group=sentiment)) %>%
+  hc_add_theme(hc_theme_elementary()) 
+```
+<p dir="RTL">
+روند کلی احساسی (مثبت یا منفی) حاکم بر داستان را میتوان از نمودار بالا فهمید.
+</p>
+
+***
+
+<h5 dir="RTL">
+۶. ابتدا ترکیبات دوتایی کلماتی که پشت سر هم می آیند را استخراج کنید و سپس نمودار ۳۰ جفت لغت پرتکرار را رسم نمایید.
+</h5>
+<h6 dir="RTL">
+پاسخ:
+</h6>
+<p dir="RTL">
+ابتدا 
+bigram 
+ها را استخراج می کنیم. سپس آن را پالایش می کنیم. بدین ترتیب که اگر یکی از کلمان اول یا دوم آن، عضوی از کلمات 
+Stopping-Word 
+ها بود، آن 
+Bigram 
+را حذف می کنیم. در نهایت هم ۳۰ 
+Bigram 
+پر تکرار را رسم میکنیم. این عملیات را می توان در تابع زیر خلاصه کرد:
+</p>
+```{r, warning=FALSE}
+Bigrams = function (datafram)
+{
+  datafram %>% 
+    unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
+    separate(bigram, c("word1", "word2"), sep = " ") %>%
+    filter(!word1 %in% stop_words$word) %>%
+    filter(!word2 %in% stop_words$word) %>%
+    mutate(bigram = paste(word1, word2)) %>%
+    select(bigram) %>%
+    group_by(bigram) %>%
+    summarise(Count = n()) %>%
+    arrange(-Count) %>%
+    .[1:30,] %>%
+    hchart(type="column", hcaes(x=bigram, y=Count)) %>%
+    hc_add_theme(hc_theme_elementary()) 
+}
+```
+<p dir="RTL">
+مثلا برای کتاب بینوایان:
+</p>
+```{r, warning=FALSE}
+Bigrams(Data)
+```
+<p dir="RTL">
+و یا برای کتاب «داستان دو شهر»:
+</p>
+```{r, warning=FALSE}
+Bigrams(data12)
+```
+<p dir="RTL">
+نمودارهای 
+Bigram 
+می باشند.
+</p>
+***
+
+<h5 dir="RTL">
+۷. جفت کلماتی که با she و یا he آغاز می شوند را استخراج کنید. بیست فعل پرتکراری که زنان و مردان در داستان های دیکنز انجام می دهند را استخراج کنید و نمودار آن را رسم نمایید.
+</h5>
+<h6 dir="RTL">
+پاسخ:
+</h6>
+
+<p dir="RTL">
+مشابه سوال قبل عمل می کنیم با این تفاوت که در پالایش کلمات 
+Bigram 
+ها، چک میکنیم که کلمه ی اول 
+he 
+یا 
+she 
+باشد. تابع زیر این کار را انجام می دهد:
+</p>
+```{r, warning=FALSE}
+Bigrams = function (datafram)
+{
+  datafram %>% 
+    unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
+    separate(bigram, c("word1", "word2"), sep = " ") %>%
+    filter(word1 == "he") %>%
+    filter(!word2 %in% stop_words$word) %>%
+    mutate(bigram = paste(word1, word2)) %>%
+    select(bigram) %>%
+    group_by(bigram) %>%
+    summarise(Count = n()) %>%
+    arrange(-Count) %>%
+    .[1:20,] %>%
+    mutate(gr="Men") ->men
+  
+  datafram %>% 
+    unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
+    separate(bigram, c("word1", "word2"), sep = " ") %>%
+    filter(word1 == "she") %>%
+    filter(!word2 %in% stop_words$word) %>%
+    mutate(bigram = paste(word1, word2)) %>%
+    select(bigram) %>%
+    group_by(bigram) %>%
+    summarise(Count = n()) %>%
+    arrange(-Count) %>%
+    .[1:20,] %>%
+    mutate(gr="Women") ->women
+  
+  rbind(men, women) %>%
+    hchart(type="column", hcaes(x=bigram, y=Count, group=gr)) %>%
+    hc_add_theme(hc_theme_elementary()) 
+}
+```
+<p dir="RTL">
+برای مثال در کارهای دیکنز (ادغام همه ی ۱۵ داستان با هم) بیشترین افعالی که زنان و مردان انجام میدهند به این صورت است:
+</p>
+```{r, warning=FALSE}
+Bigrams(data)
+```
+<p dir="RTL">
+یا مثلا در داستان بینوایان به این صورت است:
+</p>
+```{r, warning=FALSE}
+Bigrams(Data)
+```
+<p dir="RTL">
+اگر بخواهیم یک داستان را به صورت خاص بررسی کنیم هم میتوانیم تابع 
+Bigrams 
+را برای آن داستان خاص صدا کنیم که برای جلوگیری از طویل شدن گزارش، از آن خودداری می کنیم.
+</p>
+
+
+***
+
+<h5 dir="RTL">
+۸. برای کتاب های دیکنز ابتدا هر فصل را جدا کنید. سپی برای هر فصل 
+1-gram 
+و 
+2-gram 
+را استخراج کنید. آیا توزیع  N-gram
+در کارهای دیکنز یکسان است؟ با رسم نمودار هم این موضوع را بررسی کنید.
+</h5>
+<h6 dir="RTL">
+پاسخ:
+</h6>
+<p dir="RTL"> 
+تنها کتابی از دیکنز که تعداد فصل هایش کم است، 
+ یادداشت های پیکویک 
+ است. بنابراین برای امتحان روی هریک از فصل های این داستان، توزیع 
+ ngram 
+ ها را حساب می کنیم:
+</p>
+```{r, warning=FALSE}
+data1 %>%
+  mutate(chapter = cumsum(str_detect(text, regex("^chapter [\\divxlc]. [A-Z]",
+                                                 ignore_case = TRUE)))) %>%
+  filter(chapter>0) ->tmp
+
+tmp %>%
+  unnest_tokens(word, text, token = "ngrams", n = 1) %>%
+  filter(!word %in% stop_words$word) %>%
+  count(chapter, word, sort = TRUE) %>%
+  ungroup() -> chapter_words
+
+chapter_words %>%
+  group_by(chapter) %>% 
+  summarize(total = sum(n)) -> total_words
+
+words <- left_join(chapter_words, total_words)
+
+words %>%
+  mutate(prob = n/total) %>%
+  arrange(chapter, -prob)-> words
+```
+
+<p dir="RTL"> 
+تا اینجا فصل ها را تشخیص داده ایم و برای هر فصل، فرکانس 
+unigram 
+ها را حساب کرده ایم:
+</p>
+```{r, warning=FALSE}
+words
+```
+<p dir="RTL"> 
+می توانیم از تصویرسازی مناسب هم استفاده کنیم:
+</p>
+
+```{r, warning=FALSE}
+ggplot(words, aes(prob, fill = chapter)) +
+  geom_histogram(show.legend = FALSE) +
+  xlim(NA, 0.0009) +
+  facet_wrap(~chapter, ncol = 2, scales = "free_y")
+```
+
+<p dir="RTL"> 
+به نظر میرسد که این نمودار ها مشابهتی به هم ندارند. برای تست، از آزمون شبیه سازی مربع کای استفاده می کنیم:
+</p>
+```{r, warning=FALSE}
+prob1 = words$prob[which(words$chapter==1)]
+prob1 = prob1[1:100]
+prob2 = words$prob[which(words$chapter==2)]
+prob2 = prob2[1:100]
+prob3 = words$prob[which(words$chapter==3)]
+prob3 = prob3[1:100]
+prob4 = words$prob[which(words$chapter==4)]
+prob4 = prob4[1:100]
+
+probs = data_frame(prob1, prob2, prob3, prob4)
+
+chisq.test(probs,simulate.p.value=TRUE,B=100000)
+```
+<p dir="RTL"> 
+که با توجه به بالا بودن پی-ولیو، به نظر میرسد توزیع 
+unigram 
+ها در ۴ فصل کتاب ثابت نیست. همین کار را برای 
+bigram 
+ها هم میتوان کرد:
+</p>
+```{r, warning=FALSE}
+data1 %>%
+  mutate(chapter = cumsum(str_detect(text, regex("^chapter [\\divxlc]. [A-Z]",
+                                                 ignore_case = TRUE)))) %>%
+  filter(chapter>0) ->tmp
+
+tmp %>%
+  unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
+  separate(bigram, c("word1", "word2"), sep = " ") %>%
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word) %>%
+  mutate(word = paste(word1, word2)) %>%
+  select(chapter, word) %>%
+  count(chapter, word, sort = TRUE) %>%
+  ungroup() -> chapter_words
+
+chapter_words %>%
+  group_by(chapter) %>% 
+  summarize(total = sum(n)) -> total_words
+
+words <- left_join(chapter_words, total_words)
+
+words %>%
+  mutate(prob = n/total) %>%
+  arrange(chapter, -prob)-> words
+
+words
+
+ggplot(words, aes(prob, fill = chapter)) +
+  geom_histogram(show.legend = FALSE) +
+  xlim(NA, 0.0009) +
+  facet_wrap(~chapter, ncol = 2, scales = "free_y")
+  
+prob1 = words$prob[which(words$chapter==1)]
+prob1 = prob1[1:100]
+prob2 = words$prob[which(words$chapter==2)]
+prob2 = prob2[1:100]
+prob3 = words$prob[which(words$chapter==3)]
+prob3 = prob3[1:100]
+prob4 = words$prob[which(words$chapter==4)]
+prob4 = prob4[1:100]
+
+probs = data_frame(prob1, prob2, prob3, prob4)
+
+chisq.test(probs,simulate.p.value=TRUE,B=100000)
+```
+<p dir="RTL"> 
+که نتیجه مشابه است. برای سایر کتاب ها هم وضع به همین ترتیب است!
+</p>
+
+***
+
+<h5 dir="RTL"> 
+۹. برای آثار ارنست همینگوی نیز تمرین ۸ را تکرار کنید. آیا بین آثار توزیع n-grams در بین آثار این دو نویسنده یکسان است؟
+</h5>
+<h6 dir="RTL">
+پاسخ:
+</h6>
+<p dir="RTL"> 
+متاسفانه آثار ارنست همینگوی در پروژه گوتنبرگ وجود ندارد!
+</p>
+
+
+***
+
+<h5 dir="RTL"> 
+۱۰. بر اساس دادهایی که در تمرین ۸ و ۹ از آثار دو نویسنده به دست آوردید و با استفاده از  N-gram ها یک مدل لاجستیک برای تشخیص صاحب اثر بسازید. خطای مدل چقدر است؟ برای یادگیری مدل از کتاب کتاب الیور تویست اثر دیکنز و کتاب پیرمرد و دریا استفاده نکنید. پس از ساختن مدل برای تست کردن فصل های این کتابها را به عنوان داده ورودی به مدل بدهید. خطای تشخیص چقدر است؟
+</h5>
+<h6 dir="RTL">
+پاسخ:
+</h6>
+<p dir="RTL"> 
+با توجه به گنگ بودن سوال ۸ و عدم وجود داده برای سوال ۹، حل این سوال عملا غیر ممکن است.
+</p>
+
+
